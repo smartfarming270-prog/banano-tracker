@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.Calendar;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -83,11 +84,21 @@ public class MainActivity extends AppCompatActivity {
         handler.post(new Runnable() {
             @Override
             public void run() {
-                if (ultimaUbicacion != null) {
-                    enviarUbicacion();
+                // Obtener hora actual
+                Calendar calendar = Calendar.getInstance();
+                int hora = calendar.get(Calendar.HOUR_OF_DAY);
+
+                // Solo enviar entre 4 AM (4) y 7 PM (19)
+                if (hora >= 4 && hora < 19) {
+                    if (ultimaUbicacion != null) {
+                        enviarUbicacion();
+                    } else {
+                        statusText.setText("⏳ Esperando ubicación GPS...");
+                    }
                 } else {
-                    statusText.setText("⏳ Esperando ubicación GPS...");
+                    statusText.setText("🌙 Fuera de horario (4 AM - 7 PM)");
                 }
+
                 handler.postDelayed(this, 15000);
             }
         });
