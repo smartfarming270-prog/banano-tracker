@@ -39,6 +39,7 @@ function guardarUbicacion(ubicacion) {
 }
 
 app.post('/api/ubicacion', (req, res) => {
+    console.log('RECIBIDO:', req.body);  // 
     const { id, la, lo, ts } = req.body;
     
     if (!id || !la || !lo) {
