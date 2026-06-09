@@ -98,13 +98,10 @@ public class MainActivity extends AppCompatActivity {
 
         new Thread(() -> {
             try {
-                String payload = String.format(
-                        "{\"id\":\"%s\",\"la\":%.5f,\"lo\":%.5f,\"ts\":%d}",
-                        dispositivoID,
-                        ultimaUbicacion.getLatitude(),
-                        ultimaUbicacion.getLongitude(),
-                        System.currentTimeMillis()
-                );
+                String payload = "{\"id\":\"" + dispositivoID +
+                        "\",\"la\":" + ultimaUbicacion.getLatitude() +
+                        ",\"lo\":" + ultimaUbicacion.getLongitude() +
+                        ",\"ts\":" + System.currentTimeMillis() + "}";
 
                 URL url = new URL(serverURL + "/api/ubicacion");
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
