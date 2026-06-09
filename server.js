@@ -51,7 +51,7 @@ app.post('/api/ubicacion', (req, res) => {
         lat: parseFloat(la),
         lng: parseFloat(lo),
         timestamp: ts || Date.now(),
-        hora: new Date().toLocaleTimeString('es-CR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
+        hora: new Date(new Date().getTime() - (6 * 60 * 60 * 1000)).toLocaleTimeString('es-CR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
     };
     
     ubicacionesActuales[id] = ubicacion;
