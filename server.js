@@ -56,7 +56,7 @@ app.post('/api/ubicacion', (req, res) => {
     ubicacionesActuales[id] = ubicacion;
     guardarUbicacion(ubicacion);
     
-    console.log(`✅ [${ubicacion.hora}] ${id} → Lat: ${la}, Lng: ${lo}`);
+    console.log(` [${ubicacion.hora}] ${id} → Lat: ${la}, Lng: ${lo}`);
     
     broadcast();
     res.json({ ok: true });
@@ -104,9 +104,12 @@ app.get('/', (req, res) => {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🍌 Rastreo Banano - Historial de Ruta</title>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDummyKey123"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        html, body { height: 100%; }
         
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -249,8 +252,8 @@ app.get('/', (req, res) => {
                     <option value="">Seleccionar dispositivo...</option>
                 </select>
                 <input type="date" id="selectFecha">
-                <button onclick="cargarHistorial()">📍 Cargar Ruta</button>
-                <button onclick="cargarActual()">🔄 Ubicación Actual</button>
+                <button onclick="cargarHistorial()"> Cargar Ruta</button>
+                <button onclick="cargarActual()"> Ubicación Actual</button>
             </div>
             <div id="estadoConexion" class="conexion-status desconectado">
                 🔴 Conectando...
@@ -260,7 +263,7 @@ app.get('/', (req, res) => {
         <div class="contenedor-principal">
             <div id="map"></div>
             <div class="panel-info">
-                <h2>📊 Estadísticas</h2>
+                <h2> Estadísticas</h2>
                 <div id="estadisticas" class="estadisticas">
                     <div class="estadistica-item">Total de puntos: <strong id="totalPuntos">0</strong></div>
                     <div class="estadistica-item">Hora inicio: <strong id="horaInicio">--:--:--</strong></div>
@@ -269,13 +272,13 @@ app.get('/', (req, res) => {
                     <div class="estadistica-item">Distancia aprox: <strong id="distancia">0 km</strong></div>
                 </div>
                 
-                <h2 style="margin-top: 20px;">📍 Ruta Completa</h2>
+                <h2 style="margin-top: 20px;"> Ruta Completa</h2>
                 <div class="modo-vista" style="margin-top: 15px; padding-top: 15px; border-top: 2px solid #ddd;">
                     <button onclick="mostrarTodo()" style="width: 100%; margin-bottom: 10px;">Ver toda la ruta</button>
                     <button onclick="mostrarUltimos30()" style="width: 100%;">Últimos 30 min</button>
                 </div>
                 
-                <h2 style="margin-top: 20px;">📌 Puntos de Ruta</h2>
+                <h2 style="margin-top: 20px;"> Puntos de Ruta</h2>
                 <div id="listadoPuntos" class="listado-puntos">
                     <p style="color: #999;">Selecciona un dispositivo y fecha...</p>
                 </div>
@@ -292,12 +295,11 @@ app.get('/', (req, res) => {
         let dispositivos = new Set();
         
         function iniciarMapa() {
-            map = new google.maps.Map(document.getElementById('map'), {
-                zoom: 14,
-                center: { lat: 9.7489, lng: -83.7534 },
-                mapTypeControl: true,
-                fullscreenControl: true
-            });
+            map = L.map('map').setView([9.7489, -83.7534], 14);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
         }
         
         function conectarWebSocket() {
@@ -394,8 +396,8 @@ app.get('/', (req, res) => {
         }
         
         function mostrarRuta(puntos) {
-            Object.values(markers).forEach(m => m.setMap(null));
-            Object.values(polylines).forEach(p => p.setMap(null));
+            Object.values(markers).forEach(m => map.removeLayer(m));
+            Object.values(polylines).forEach(p => map.removeLayer(p));
             markers = {};
             polylines = {};
             
@@ -404,36 +406,25 @@ app.get('/', (req, res) => {
                 return;
             }
             
-            const ruta = puntos.map(p => ({lat: p.lat, lng: p.lng}));
-            const polyline = new google.maps.Polyline({
-                path: ruta,
-                geodesic: true,
-                strokeColor: '#667eea',
-                strokeOpacity: 0.8,
-                strokeWeight: 3,
-                map: map
-            });
+            const ruta = puntos.map(p => [p.lat, p.lng]);
+            const polyline = L.polyline(ruta, {
+                color: '#667eea',
+                opacity: 0.8,
+                weight: 3
+            }).addTo(map);
             polylines['ruta'] = polyline;
             
             if (puntos.length > 0) {
-                markers['inicio'] = new google.maps.Marker({
-                    position: { lat: puntos[0].lat, lng: puntos[0].lng },
-                    map: map,
-                    title: 'INICIO',
-                    icon: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png'
-                });
+                markers['inicio'] = L.marker([puntos[0].lat, puntos[0].lng], {
+                    title: 'INICIO'
+                }).bindPopup('<b>INICIO</b>').addTo(map);
                 
-                markers['fin'] = new google.maps.Marker({
-                    position: { lat: puntos[puntos.length-1].lat, lng: puntos[puntos.length-1].lng },
-                    map: map,
-                    title: 'FIN',
-                    icon: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
-                });
+                markers['fin'] = L.marker([puntos[puntos.length-1].lat, puntos[puntos.length-1].lng], {
+                    title: 'FIN'
+                }).bindPopup('<b>FIN</b>').addTo(map);
             }
             
-            const bounds = new google.maps.LatLngBounds();
-            puntos.forEach(p => bounds.extend({ lat: p.lat, lng: p.lng }));
-            map.fitBounds(bounds);
+            map.fitBounds(L.latLngBounds(ruta));
             
             actualizarEstadisticas(puntos);
             
@@ -445,8 +436,7 @@ app.get('/', (req, res) => {
         }
         
         function irAlPunto(lat, lng) {
-            map.panTo({ lat, lng });
-            map.setZoom(18);
+            map.setView([lat, lng], 18);
         }
         
         function actualizarEstadisticas(puntos) {
@@ -486,24 +476,17 @@ app.get('/', (req, res) => {
             try {
                 const res = await fetch('/api/ubicaciones');
                 const data = await res.json();
-                Object.values(markers).forEach(m => m.setMap(null));
-                Object.values(polylines).forEach(p => p.setMap(null));
+                Object.values(markers).forEach(m => map.removeLayer(m));
+                Object.values(polylines).forEach(p => map.removeLayer(p));
                 markers = {};
                 polylines = {};
                 
                 data.ubicaciones.forEach(u => {
-                    const marker = new google.maps.Marker({
-                        position: { lat: u.lat, lng: u.lng },
-                        map: map,
-                        title: u.dispositivo,
-                        icon: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'
-                    });
-                    markers[u.dispositivo] = marker;
+                    markers[u.dispositivo] = L.marker([u.lat, u.lng]).bindPopup('<b>' + u.dispositivo + '</b>').addTo(map);
                 });
                 
                 if (data.ubicaciones.length > 0) {
-                    map.setCenter({ lat: data.ubicaciones[0].lat, lng: data.ubicaciones[0].lng });
-                    map.setZoom(14);
+                    map.setView([data.ubicaciones[0].lat, data.ubicaciones[0].lng], 14);
                 }
             } catch (e) {}
         }
@@ -530,6 +513,6 @@ function broadcast() {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-    console.log(`\n🚀 Servidor corriendo en puerto ${PORT}`);
-    console.log(`📍 Abre: http://localhost:${PORT}\n`);
+    console.log(`\n Servidor corriendo en puerto ${PORT}`);
+    console.log(` Abre: http://localhost:${PORT}\n`);
 });
