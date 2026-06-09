@@ -1,59 +1,85 @@
 package com.banano.tracker;
 
 import android.Manifest;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.Service;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.os.Binder;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
-import android.widget.TextView;
-import android.widget.Toast;
-import androidx.appcompat.app.AppCompatActivity;
+import android.os.IBinder;
 import androidx.core.app.ActivityCompat;
+import androidx.core.app.NotificationCompat;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Calendar;
 
-public class MainActivity extends AppCompatActivity {
+public class LocationService extends Service {
 
     private LocationManager locationManager;
     private Handler handler = new Handler();
     private Location ultimaUbicacion;
-    private TextView statusText;
     private LocationListener locationListener;
     private String dispositivoID = "Celular_Banano_1";
     private String serverURL = "https://banano-tracker.onrender.com";
+    private final IBinder binder = new LocalBinder();
+
+    public class LocalBinder extends Binder {
+        LocationService getService() {
+            return LocationService.this;
+        }
+    }
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+    public IBinder onBind(Intent intent) {
+        return binder;
+    }
 
-        statusText = findViewById(R.id.statusText);
-        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        iniciarRastreo();
+        crearNotificacion();
+        return START_STICKY;
+    }
 
-        if (ActivityCompat.checkSelfPermission(this,
-                Manifest.permission.ACCESS_FINE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
-            return;
+    private void crearNotificacion() {
+        String channelId = "LocationTracking";
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(
+                    channelId,
+                    "Rastreo GPS",
+                    NotificationManager.IMPORTANCE_LOW
+            );
+            NotificationManager manager = getSystemService(NotificationManager.class);
+            manager.createNotificationChannel(channel);
         }
 
-        iniciarRastreo();
+        Notification notification = new NotificationCompat.Builder(this, channelId)
+                .setContentTitle("🍌 Rastreador Banano")
+                .setContentText("Transmitiendo ubicación...")
+                .setSmallIcon(android.R.drawable.ic_dialog_map)
+                .build();
+
+        startForeground(1, notification);
     }
 
     private void iniciarRastreo() {
-        statusText.setText("🚀 Iniciando rastreo...");
+        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
 
         locationListener = new LocationListener() {
             @Override
             public void onLocationChanged(Location location) {
                 ultimaUbicacion = location;
-                statusText.setText("📍 Última ubicación:\nLat: " + location.getLatitude() + "\nLng: " + location.getLongitude());
             }
 
             @Override
@@ -90,11 +116,7 @@ public class MainActivity extends AppCompatActivity {
                 if (hora >= 4 && hora < 19) {
                     if (ultimaUbicacion != null) {
                         enviarUbicacion();
-                    } else {
-                        statusText.setText("⏳ Esperando ubicación GPS...");
                     }
-                } else {
-                    statusText.setText("🌙 Fuera de horario (4 AM - 7 PM)");
                 }
 
                 handler.postDelayed(this, 15000);
@@ -127,37 +149,20 @@ public class MainActivity extends AppCompatActivity {
 
                 int responseCode = conn.getResponseCode();
                 android.util.Log.d("BananoApp", "Response code: " + responseCode);
-
-                runOnUiThread(() -> {
-                    if (responseCode == 200) {
-                        statusText.setText("✅ Ubicación enviada\nLat: " + ultimaUbicacion.getLatitude() + "\nLng: " + ultimaUbicacion.getLongitude());
-                    }
-                });
-
                 conn.disconnect();
 
             } catch (Exception e) {
                 android.util.Log.e("BananoApp", "Error: " + e.getMessage());
-                runOnUiThread(() -> {
-                    statusText.setText("❌ Error: " + e.getMessage());
-                });
             }
         }).start();
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            iniciarRastreo();
-        }
-    }
-
-    @Override
-    protected void onDestroy() {
+    public void onDestroy() {
         super.onDestroy();
         if (locationManager != null && locationListener != null) {
             locationManager.removeUpdates(locationListener);
         }
+        handler.removeCallbacksAndMessages(null);
     }
 }
