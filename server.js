@@ -32,7 +32,7 @@ function guardarUbicacion(ubicacion) {
         lat: ubicacion.lat,
         lng: ubicacion.lng,
         timestamp: ubicacion.timestamp,
-        hora: new Date(ubicacion.timestamp).toLocaleTimeString('es-CR')
+        hora: new Date(new Date(ubicacion.timestamp).getTime() - (6 * 60 * 60 * 1000)).toLocaleTimeString('es-CR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
     });
     
     fs.writeFileSync(archivo, JSON.stringify(historial, null, 2));
