@@ -297,10 +297,10 @@ app.get('/', (req, res) => {
         
         function iniciarMapa() {
             map = L.map('map').setView([9.7489, -83.7534], 14);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-                attribution: '© OpenStreetMap contributors',
-                maxZoom: 19
-            }).addTo(map);
+ L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: '&copy; Esri, DigitalGlobe, GeoEye, Earthstar Geographics',
+    maxZoom: 18
+}).addTo(map);
         }
         
         function conectarWebSocket() {
