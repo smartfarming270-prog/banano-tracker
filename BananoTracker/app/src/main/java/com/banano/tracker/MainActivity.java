@@ -27,6 +27,12 @@ public class MainActivity extends AppCompatActivity {
     private String dispositivoID = "Celular_Banano_1";
     private String serverURL = "https://banano-tracker.onrender.com";
 
+    // Kalman Filter variables
+    private double filteredLat = 0;
+    private double filteredLng = 0;
+    private double[][] covarianceP = {{1, 0}, {0, 1}};
+    private boolean firstFix = true;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -53,7 +59,18 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onLocationChanged(Location location) {
                 ultimaUbicacion = location;
-                statusText.setText("📍 Última ubicación:\nLat: " + location.getLatitude() + "\nLng: " + location.getLongitude());
+
+                // Aplicar Kalman Filter
+                if (firstFix) {
+                    filteredLat = location.getLatitude();
+                    filteredLng = location.getLongitude();
+                    firstFix = false;
+                } else {
+                    kalmanFilter(location.getLatitude(), location.getLongitude());
+                }
+
+                statusText.setText("📍 Última ubicación:\nLat: " + String.format("%.6f", filteredLat) +
+                        "\nLng: " + String.format("%.6f", filteredLng));
             }
 
             @Override
@@ -80,6 +97,15 @@ public class MainActivity extends AppCompatActivity {
         enviarUbicacionPeriodia();
     }
 
+    // Kalman Filter - Versión simplificada
+    private void kalmanFilter(double lat, double lng) {
+        // Ganancia de Kalman simplificada
+        double alpha = 0.1; // Factor de suavización (0-1, menor = más suavizado)
+
+        filteredLat = (alpha * lat) + ((1 - alpha) * filteredLat);
+        filteredLng = (alpha * lng) + ((1 - alpha) * filteredLng);
+    }
+
     private void enviarUbicacionPeriodia() {
         handler.post(new Runnable() {
             @Override
@@ -88,7 +114,7 @@ public class MainActivity extends AppCompatActivity {
                 int hora = calendar.get(Calendar.HOUR_OF_DAY);
 
                 if (hora >= 4 && hora < 19) {
-                    if (ultimaUbicacion != null) {
+                    if (ultimaUbicacion != null && !firstFix) {
                         enviarUbicacion();
                     } else {
                         statusText.setText("⏳ Esperando ubicación GPS...");
@@ -103,13 +129,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void enviarUbicacion() {
-        if (ultimaUbicacion == null) return;
+        if (ultimaUbicacion == null || firstFix) return;
 
         new Thread(() -> {
             try {
                 String payload = "{\"id\":\"" + dispositivoID +
-                        "\",\"la\":" + ultimaUbicacion.getLatitude() +
-                        ",\"lo\":" + ultimaUbicacion.getLongitude() +
+                        "\",\"la\":" + filteredLat +
+                        ",\"lo\":" + filteredLng +
                         ",\"ts\":" + System.currentTimeMillis() + "}";
 
                 URL url = new URL(serverURL + "/api/ubicacion");
@@ -130,7 +156,8 @@ public class MainActivity extends AppCompatActivity {
 
                 runOnUiThread(() -> {
                     if (responseCode == 200) {
-                        statusText.setText("✅ Ubicación enviada\nLat: " + ultimaUbicacion.getLatitude() + "\nLng: " + ultimaUbicacion.getLongitude());
+                        statusText.setText("✅ Ubicación enviada\nLat: " + String.format("%.6f", filteredLat) +
+                                "\nLng: " + String.format("%.6f", filteredLng));
                     }
                 });
 

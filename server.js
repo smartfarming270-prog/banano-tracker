@@ -397,44 +397,61 @@ app.get('/', (req, res) => {
         }
         
         function mostrarRuta(puntos) {
-            Object.values(markers).forEach(m => map.removeLayer(m));
-            Object.values(polylines).forEach(p => map.removeLayer(p));
-            markers = {};
-            polylines = {};
-            
-            if (puntos.length === 0) {
-                document.getElementById('listadoPuntos').innerHTML = '<p style="color: #999;">No hay datos</p>';
-                return;
-            }
-            
-            const ruta = puntos.map(p => [p.lat, p.lng]);
-            const polyline = L.polyline(ruta, {
-                color: '#667eea',
-                opacity: 0.8,
-                weight: 3
-            }).addTo(map);
-            polylines['ruta'] = polyline;
-            
-            if (puntos.length > 0) {
-                markers['inicio'] = L.marker([puntos[0].lat, puntos[0].lng], {
-                    title: 'INICIO'
-                }).bindPopup('<b>INICIO</b>').addTo(map);
-                
-                markers['fin'] = L.marker([puntos[puntos.length-1].lat, puntos[puntos.length-1].lng], {
-                    title: 'FIN'
-                }).bindPopup('<b>FIN</b>').addTo(map);
-            }
-            
-            map.fitBounds(L.latLngBounds(ruta));
-            
-            actualizarEstadisticas(puntos);
-            
-            let html = '';
-            puntos.forEach((p, i) => {
-                html += \`<div class="punto" onclick="irAlPunto(\${p.lat}, \${p.lng})"><strong>#\${i+1}</strong> \${p.hora}</div>\`;
-            });
-            document.getElementById('listadoPuntos').innerHTML = html;
-        }
+    Object.values(markers).forEach(m => map.removeLayer(m));
+    Object.values(polylines).forEach(p => map.removeLayer(p));
+    markers = {};
+    polylines = {};
+    
+    if (puntos.length === 0) {
+        document.getElementById('listadoPuntos').innerHTML = '<p style="color: #999;">No hay datos</p>';
+        return;
+    }
+    
+    const ruta = puntos.map(p => [p.lat, p.lng]);
+    
+    // Dibujar polyline
+    const polyline = L.polyline(ruta, {
+        color: '#0066FF',
+        weight: 3,
+        opacity: 0.7,
+        dashArray: '5, 5'
+    }).addTo(map);
+    polylines['ruta'] = polyline;
+    
+    // Agregar puntos numerados
+    puntos.forEach((p, index) => {
+        const marker = L.circleMarker([p.lat, p.lng], {
+            radius: 6,
+            fillColor: '#0066FF',
+            color: '#fff',
+            weight: 2,
+            opacity: 1,
+            fillOpacity: 0.8
+        }).bindPopup(\`<b>Punto \${index + 1}</b><br>\${p.hora}\`).addTo(map);
+        markers[\`punto_\${index}\`] = marker;
+    });
+    
+    // Marcadores de inicio y fin
+    if (puntos.length > 0) {
+        markers['inicio'] = L.marker([puntos[0].lat, puntos[0].lng], {
+            title: 'INICIO'
+        }).bindPopup('<b>🟢 INICIO</b><br>' + puntos[0].hora).addTo(map);
+        
+        markers['fin'] = L.marker([puntos[puntos.length-1].lat, puntos[puntos.length-1].lng], {
+            title: 'FIN'
+        }).bindPopup('<b>🔴 FIN</b><br>' + puntos[puntos.length-1].hora).addTo(map);
+    }
+    
+    map.fitBounds(L.latLngBounds(ruta));
+    
+    actualizarEstadisticas(puntos);
+    
+    let html = '';
+    puntos.forEach((p, i) => {
+        html += \`<div class="punto" onclick="irAlPunto(\${p.lat}, \${p.lng})"><strong>#\${i+1}</strong> \${p.hora}</div>\`;
+    });
+    document.getElementById('listadoPuntos').innerHTML = html;
+}
         
         function irAlPunto(lat, lng) {
             map.setView([lat, lng], 18);
